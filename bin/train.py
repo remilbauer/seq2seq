@@ -204,6 +204,7 @@ def create_experiment(output_dir):
     eval_metrics[metric.name] = metric
 
   experiment = PatchedExperiment(
+      train_steps_per_iteration=FLAGS.eval_every_n_steps,
       estimator=estimator,
       train_input_fn=train_input_fn,
       eval_input_fn=eval_input_fn,
