@@ -31,7 +31,7 @@ from tensorflow.contrib.learn.python.learn import learn_runner
 from tensorflow.contrib.learn.python.learn.estimators import run_config
 from tensorflow import gfile
 
-from seq2seq import models
+from seq2seq.seq2seq import models
 from seq2seq.contrib.experiment import Experiment as PatchedExperiment
 from seq2seq.configurable import _maybe_load_yaml, _create_from_dict
 from seq2seq.configurable import _deep_merge_dict
