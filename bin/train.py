@@ -40,6 +40,9 @@ from seq2seq.metrics import metric_specs
 from seq2seq.training import hooks
 from seq2seq.training import utils as training_utils
 
+from ghissubot import models as custom_models
+from ghissubot.data_pipelines import conversation_input_pipeline
+
 tf.flags.DEFINE_string("config_paths", "",
                        """Path to a YAML configuration files defining FLAG
                        values. Multiple files can be separated by commas.
@@ -114,6 +117,8 @@ tf.flags.DEFINE_boolean("gpu_allow_growth", False,
                         dynamically.""")
 tf.flags.DEFINE_boolean("log_device_placement", False,
                         """Log the op placement to devices""")
+tf.flags.DEFINE_boolean("use_custom_classes", True,
+                        """Provide default module for custom classes instead of google classes""")
 
 
 FLAGS = tf.flags.FLAGS
@@ -176,10 +181,16 @@ def create_experiment(output_dir):
 
   def model_fn(features, labels, params, mode):
     """Builds the model graph"""
-    model = _create_from_dict({
-        "class": train_options.model_class,
-        "params": train_options.model_params
-    }, models, mode=mode)
+    if FLAGS.use_custom_classes:
+        model = _create_from_dict({
+            "class": train_options.model_class,
+            "params": train_options.model_params
+        }, custom_models, mode=mode)
+    else:
+        model = _create_from_dict({
+            "class": train_options.model_class,
+            "params": train_options.model_params
+        }, models, mode=mode)
     return model(features, labels, params)
 
   estimator = tf.contrib.learn.Estimator(
