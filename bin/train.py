@@ -41,7 +41,7 @@ from seq2seq.training import hooks
 from seq2seq.training import utils as training_utils
 
 from ghissubot import models as custom_models
-from ghissubot.data_pipelines import conversation_input_pipeline
+from ghissubot import data_pipelines as custom_input_pipelines
 
 tf.flags.DEFINE_string("config_paths", "",
                        """Path to a YAML configuration files defining FLAG
@@ -154,9 +154,16 @@ def create_experiment(output_dir):
     bucket_boundaries = list(map(int, FLAGS.buckets.split(",")))
 
   # Training data input pipeline
-  train_input_pipeline = input_pipeline.make_input_pipeline_from_def(
-      def_dict=FLAGS.input_pipeline_train,
-      mode=tf.contrib.learn.ModeKeys.TRAIN)
+  if FLAGS.use_custom_classes:
+      train_input_pipeline = input_pipeline.make_input_pipeline_from_def(
+          def_dict=FLAGS.input_pipeline_train,
+          default_module=custom_input_pipelines,
+          mode=tf.contrib.learn.ModeKeys.TRAIN)
+  else:
+      train_input_pipeline = input_pipeline.make_input_pipeline_from_def(
+          def_dict=FLAGS.input_pipeline_train,
+          default_module=models,
+          mode=tf.contrib.learn.ModeKeys.TRAIN)
 
   # Create training input function
   train_input_fn = training_utils.create_input_fn(

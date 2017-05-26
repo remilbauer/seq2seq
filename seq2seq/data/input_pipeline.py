@@ -25,6 +25,7 @@ from __future__ import unicode_literals
 
 import abc
 import sys
+from pydoc import locate
 
 import six
 
@@ -39,7 +40,7 @@ from seq2seq.data.sequence_example_decoder import TFSEquenceExampleDecoder
 from ghissubot.data_pipelines import split_utterances_decoder
 
 
-def make_input_pipeline_from_def(def_dict, mode, **kwargs):
+def make_input_pipeline_from_def(def_dict, mode, default_module, **kwargs):
   """Creates an InputPipeline object from a dictionary definition.
 
   Args:
@@ -54,20 +55,15 @@ def make_input_pipeline_from_def(def_dict, mode, **kwargs):
   if not "class" in def_dict:
     raise ValueError("Input Pipeline definition must have a class property.")
 
-  class_ = def_dict["class"]
-
-  if not hasattr(sys.modules[__name__], class_):
-    raise ValueError("Invalid Input Pipeline class: {}".format(class_))
-
-  pipeline_class = getattr(sys.modules[__name__], class_)
+  class_ = locate(def_dict["class"]) or getattr(default_module, def_dict["class"])
 
   # Constructor arguments
   params = {}
   if "params" in def_dict:
     params.update(def_dict["params"])
   params.update(kwargs)
-
-  return pipeline_class(params=params, mode=mode)
+  instance = class_(params=params, mode=mode)
+  return instance
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -363,70 +359,3 @@ class ImageCaptioningInputPipeline(InputPipeline):
     return set(["target_tokens", "target_ids", "target_len"])
 
 
-
-  ################FUCKKKKKKKKKKKKKKKKKKKKKKKKKKKKK###############################
-class ConversationInputPipeline(InputPipeline):
-  """Input pipeline for text files containing conversations, one line per turn"""
-
-  # TODO: Right now only supports a really stupid file format for convenience of
-  # implementation. Also it will only take in one context utterance
-  @staticmethod
-  def default_params():
-      params = InputPipeline.default_params()
-      params.update({
-          "source_files": [],
-          "target_files": [],
-          "source_delimiter": " ",
-          "source_utterance_delimiter": "|",
-          "target_delimiter": " ",
-      })
-      return params
-
-  def make_data_provider(self, **kwargs):
-      # TODO: This needs to split context utterance from input
-      decoder_source = split_utterances_decoder.SplitUtterancesDecoder(
-          tokens_feature_name="source_tokens",
-          length_feature_name="source_len",
-          context_tokens_feature_name="context_tokens",
-          context_length_feature_name="context_len",
-          utterance_delimiter=self.params["source_utterance_delimiter"],
-          append_token="SEQUENCE_END",
-          delimiter=self.params["source_delimiter"])
-
-      dataset_source = tf.contrib.slim.dataset.Dataset(
-          data_sources=self.params["source_files"],
-          reader=tf.TextLineReader,
-          decoder=decoder_source,
-          num_samples=None,
-          items_to_descriptions={})
-
-      dataset_target = None
-      if len(self.params["target_files"]) > 0:
-          decoder_target = split_tokens_decoder.SplitTokensDecoder(
-              tokens_feature_name="target_tokens",
-              length_feature_name="target_len",
-              prepend_token="SEQUENCE_START",
-              append_token="SEQUENCE_END",
-              delimiter=self.params["target_delimiter"])
-
-          dataset_target = tf.contrib.slim.dataset.Dataset(
-              data_sources=self.params["target_files"],
-              reader=tf.TextLineReader,
-              decoder=decoder_target,
-              num_samples=None,
-              items_to_descriptions={})
-
-      return parallel_data_provider.ParallelDataProvider(
-          dataset1=dataset_source,
-          dataset2=dataset_target,
-          shuffle=self.params["shuffle"],
-          num_epochs=self.params["num_epochs"],
-          **kwargs)
-
-  @property
-  def feature_keys(self):
-      return set(["context_tokens", "context_len", "source_tokens", "source_len"])
-
-  @property
-  def label_keys(self):
-      return set(["target_tokens", "target_len"])
