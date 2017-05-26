@@ -37,7 +37,6 @@ from seq2seq.configurable import Configurable
 from seq2seq.data import split_tokens_decoder, parallel_data_provider
 from seq2seq.data.sequence_example_decoder import TFSEquenceExampleDecoder
 
-from ghissubot.data_pipelines import split_utterances_decoder
 
 
 def make_input_pipeline_from_def(def_dict, mode, default_module, **kwargs):

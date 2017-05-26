@@ -31,7 +31,7 @@ from tensorflow.contrib.learn.python.learn import learn_runner
 from tensorflow.contrib.learn.python.learn.estimators import run_config
 from tensorflow import gfile
 
-from seq2seq import models
+import seq2seq.models as models
 from seq2seq.contrib.experiment import Experiment as PatchedExperiment
 from seq2seq.configurable import _maybe_load_yaml, _create_from_dict
 from seq2seq.configurable import _deep_merge_dict
@@ -162,7 +162,7 @@ def create_experiment(output_dir):
   else:
       train_input_pipeline = input_pipeline.make_input_pipeline_from_def(
           def_dict=FLAGS.input_pipeline_train,
-          default_module=models,
+          default_module=input_pipeline,
           mode=tf.contrib.learn.ModeKeys.TRAIN)
 
   # Create training input function
@@ -173,10 +173,18 @@ def create_experiment(output_dir):
       scope="train_input_fn")
 
   # Development data input pipeline
-  dev_input_pipeline = input_pipeline.make_input_pipeline_from_def(
-      def_dict=FLAGS.input_pipeline_dev,
-      mode=tf.contrib.learn.ModeKeys.EVAL,
-      shuffle=False, num_epochs=1)
+  if FLAGS.use_custom_classes:
+      dev_input_pipeline = input_pipeline.make_input_pipeline_from_def(
+          def_dict=FLAGS.input_pipeline_dev,
+          default_module=custom_input_pipelines,
+          mode=tf.contrib.learn.ModeKeys.EVAL,
+          shuffle=False, num_epochs=1)
+  else:
+      dev_input_pipeline = input_pipeline.make_input_pipeline_from_def(
+          def_dict=FLAGS.input_pipeline_dev,
+          default_module=input_pipeline,
+          mode=tf.contrib.learn.ModeKeys.EVAL,
+          shuffle=False, num_epochs=1)
 
   # Create eval input function
   eval_input_fn = training_utils.create_input_fn(
