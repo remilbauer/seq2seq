@@ -279,7 +279,7 @@ class VariableRestoreHook(TrainingHook):
       checkpoint_prefix = "/".join(prefix_parts[:-1])
       return name.replace(checkpoint_prefix + "/", "")
 
-    target_names = [varname_in_checkpoint(_.op.name) for _ in variables]
+    target_names = [_.op.name for _ in variables]
     restore_map = {k: v for k, v in zip(target_names, variables)}
 
     tf.logging.info("Restoring variables: \n%s",
