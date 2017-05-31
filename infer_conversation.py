@@ -1,18 +1,24 @@
 """This will go through a list of sample input files, infer system responses for each utterance
 and write new conversation"""
+import tensorflow as tf
+import os
+
 from bin.infer import main as infer
 from bin.infer import FLAGS
 
-import tensorflow as tf
+chat_mode = True
 
+#Lower the logging level for chat mode
+if chat_mode:
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 convo_files_dir = "sample_convos/human_utterances"
-responses_dir = "sample_convos/context_model_beam"
+responses_dir = "sample_convos/ryan"
 input_file_base = "human_tick_tock_{}.txt"
 output_file_base = "system_context_{}.txt"
 infer_yaml = "/ghissubot/model_configs/infer.yml"
-model_dir = "trained_models/cornell_context/run1"
+model_dir = "trained_models/cornell_context/run2_correct_vocab"
 
 task_args_yaml = \
 """tasks:
@@ -42,6 +48,7 @@ params:
 FLAGS.model_dir = model_dir
 #Set batch size to 1 since we infer on one utterance at a time
 FLAGS.batch_size = 1
+
 
 def infer_response(utterance, prev_utterance):
     #Make temporary file with concatenated utterance
@@ -76,5 +83,9 @@ if __name__ == "__main__":
 
         previous_utterance = 'fuck'
         with open(input_name, 'r', encoding='utf8') as file:
+            if chat_mode:
+                while True:
+                    line = input().strip()
+                    previous_utterance = infer_response(line, previous_utterance)
             for line in file.readlines():
                 previous_utterance = infer_response(line, previous_utterance)
