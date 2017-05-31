@@ -30,10 +30,13 @@ import tensorflow as tf
 from tensorflow import gfile
 
 from seq2seq import tasks, models
-from seq2seq.configurable import _maybe_load_yaml, _deep_merge_dict
+from seq2seq.configurable import _maybe_load_yaml, _deep_merge_dict, _create_from_dict
 from seq2seq.data import input_pipeline
 from seq2seq.inference import create_inference_graph
 from seq2seq.training import utils as training_utils
+
+from ghissubot import models as custom_models
+from ghissubot import data_pipelines as custom_input_pipelines
 
 tf.flags.DEFINE_string("tasks", "{}", "List of inference tasks to run.")
 tf.flags.DEFINE_string("model_params", "{}", """Optionally overwrite model
@@ -54,6 +57,8 @@ tf.flags.DEFINE_string("checkpoint_path", None,
                        the latest checkpoint in the model dir is used.""")
 tf.flags.DEFINE_integer("batch_size", 32, "the train/dev batch size")
 
+tf.flags.DEFINE_boolean("use_custom_classes", True,
+                        """Provide default module for custom classes instead of google classes""")
 FLAGS = tf.flags.FLAGS
 
 def main(_argv):
@@ -73,22 +78,31 @@ def main(_argv):
   if isinstance(FLAGS.input_pipeline, string_types):
     FLAGS.input_pipeline = _maybe_load_yaml(FLAGS.input_pipeline)
 
-  input_pipeline_infer = input_pipeline.make_input_pipeline_from_def(
-      FLAGS.input_pipeline, mode=tf.contrib.learn.ModeKeys.INFER,
-      shuffle=False, num_epochs=1)
+  if FLAGS.use_custom_classes:
+      input_pipeline_infer = input_pipeline.make_input_pipeline_from_def(
+          FLAGS.input_pipeline, default_module=custom_input_pipelines,
+          mode=tf.contrib.learn.ModeKeys.INFER,
+          shuffle=False, num_epochs=1)
+  else:
+      input_pipeline_infer = input_pipeline.make_input_pipeline_from_def(
+          FLAGS.input_pipeline, default_module=input_pipeline,
+          mode=tf.contrib.learn.ModeKeys.INFER,
+          shuffle=False, num_epochs=1)
 
   # Load saved training options
   train_options = training_utils.TrainOptions.load(FLAGS.model_dir)
 
   # Create the model
-  model_cls = locate(train_options.model_class) or \
-    getattr(models, train_options.model_class)
-  model_params = train_options.model_params
-  model_params = _deep_merge_dict(
-      model_params, _maybe_load_yaml(FLAGS.model_params))
-  model = model_cls(
-      params=model_params,
-      mode=tf.contrib.learn.ModeKeys.INFER)
+  if FLAGS.use_custom_classes:
+      model = _create_from_dict({
+          "class": train_options.model_class,
+          "params": train_options.model_params
+      }, custom_models, mode=tf.contrib.learn.ModeKeys.INFER)
+  else:
+      model = _create_from_dict({
+          "class": train_options.model_class,
+          "params": train_options.model_params
+      }, models, mode=tf.contrib.learn.ModeKeys.INFER)
 
   # Load inference tasks
   hooks = []

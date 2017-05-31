@@ -134,6 +134,8 @@ class DecodeText(InferenceTask):
         "postproc_fn": "",
         "unk_replace": False,
         "unk_mapping": None,
+        "output_file": False,
+        "out_filename": ''
     })
     return params
 
@@ -186,3 +188,8 @@ class DecodeText(InferenceTask):
       sent = sent.strip()
 
       print(sent)
+
+      if self.params["output_file"]:
+        with open(self.params["out_filename"], 'a', encoding='utf8') as file:
+          file.write(sent + '\n')
+
